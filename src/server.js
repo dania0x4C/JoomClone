@@ -1,7 +1,6 @@
 import { Socket } from "dgram";
 import express from "express";
 import http from "http";
-
 import { Server } from "socket.io";
 
 const app = express();
@@ -19,20 +18,37 @@ const httpServer = http.createServer(app); //서버에서 http 사용
 const wsServer = new Server(httpServer);
 
 wsServer.on("connection", socket => {
-  socket.on("enter_room", (roomName, done) => {// 이 방식은 함수를 front에서 실행시킴 그렇게 해서 보안 문제를 해결
-    // 간단하게 emit한 정보를 받아올 수 있음
-    console.log(roomName);
-    setTimeout(() => {
-      done("TimeOut!");
-    }, 10000);
+  //wsServer.socketsJoin("announcement")
+  socket["nickname"] = "Anon";
+  socket.onAny(event => {
+    console.log(`Socket Event: ${event}`);
+  });
+
+  socket.on("enter_room", (roomName, done) => {
+    // 이 방식은 함수를 front에서 실행시킴 그렇게 해서 보안 문제를 해결
+    socket.join(roomName);
+    done();
+    socket.to(roomName).emit("welcome", socket.nickname); //room에 있는 user에게 보여줌
+  });
+
+  socket.on("disconnecting", () => {
+    socket.rooms.forEach(room => socket.to(room).emit("bye", socket.nickname));
+  });
+
+  socket.on("new_message", (msg, room, done) => {
+    socket.to(room).emit("new_message", `${socket.nickname}: ${msg}`);
+    done();
+  });
+
+  socket.on("nickname", nickname => {
+    socket["nickname"] = nickname;
   });
 });
-
 
 // function onSocketClose() {
 // console.log("Disconnected from the Browser");
 // }
-//on(eventName, (payload, function))// 중간에 추가 가능   
+//on(eventName, (payload, function))// 중간에 추가 가능
 
 // const sockets = [];
 // wss.on("connection", socket => {//socket.on은 call
