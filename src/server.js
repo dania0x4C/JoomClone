@@ -2,7 +2,7 @@ import { Socket } from "dgram";
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
-
+import { instrument } from "@socket.io/admin-ui";
 const app = express();
 
 app.set("view engine", "pug");
@@ -15,7 +15,36 @@ const handleListen = () => console.log(`Listening on http://localhost:3000`);
 
 const httpServer = http.createServer(app); //서버에서 http 사용
 //const wss = new WebSocketServer({ server }); // 서버에서 http+webSocket 동시 사용(protocol 두개 사용)
-const wsServer = new Server(httpServer);
+const wsServer = new Server(httpServer, {
+  cors: {
+    origin: ["https://admin.socket.io"],
+    credentials: true,
+  },
+});
+
+instrument(wsServer, {//로그인 기능 구현 가능
+  auth: false,
+  mode: "development",
+});
+
+function publicRooms() {
+  const {
+    socket: {
+      adapter: { sids, rooms },
+    },
+  } = wsServer;
+  const publicRooms = [];
+  rooms.forEach((_, key) => {
+    if (sids.get(key) === undefined) {
+      publicRooms.push(key);
+    }
+  });
+  return publicRooms;
+}
+
+function countRoom(roomName) {
+  wsServer.sockets.adapter.rooms.get(roomName)?.size;
+}
 
 wsServer.on("connection", socket => {
   //wsServer.socketsJoin("announcement")
@@ -28,11 +57,19 @@ wsServer.on("connection", socket => {
     // 이 방식은 함수를 front에서 실행시킴 그렇게 해서 보안 문제를 해결
     socket.join(roomName);
     done();
-    socket.to(roomName).emit("welcome", socket.nickname); //room에 있는 user에게 보여줌
+    socket.to(roomName).emit("welcome", socket.nickname, countRoom(roomName)); //room에 있는 user에게 보여줌
+    wsServer.sockets.emit("room_change", publicRooms());
   });
 
   socket.on("disconnecting", () => {
-    socket.rooms.forEach(room => socket.to(room).emit("bye", socket.nickname));
+    socket.rooms.forEach(
+      room => socket.to(room).emit("bye", socket.nickname),
+      countRoom(room) - 1
+    );
+  });
+
+  socket.on("disconnect", () => {
+    wsServer.sockets.emit("room_change", publicRooms());
   });
 
   socket.on("new_message", (msg, room, done) => {
