@@ -22,7 +22,8 @@ const wsServer = new Server(httpServer, {
   },
 });
 
-instrument(wsServer, {//로그인 기능 구현 가능
+instrument(wsServer, {
+  //로그인 기능 구현 가능
   auth: false,
   mode: "development",
 });
