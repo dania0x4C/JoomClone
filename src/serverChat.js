@@ -3,17 +3,17 @@ import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import { instrument } from "@socket.io/admin-ui";
-const app = express();
+const appChat = express();
 
-app.set("view engine", "pug");
-app.set("views", __dirname + "/views");
-app.use("/public", express.static(__dirname + "/public"));
-app.get("/", (_, res) => res.render("home"));
-app.get("/*", (_, res) => res.redirect("/"));
+appChat.set("view engine", "pug");
+appChat.set("views", __dirname + "/views");
+appChat.use("/public", express.static(__dirname + "/public"));
+appChat.get("/", (_, res) => res.render("home"));
+appChat.get("/*", (_, res) => res.redirect("/"));
 
 const handleListen = () => console.log(`Listening on http://localhost:3000`);
 
-const httpServer = http.createServer(app); //서버에서 http 사용
+const httpServer = http.createServer(appChat); //서버에서 http 사용
 //const wss = new WebSocketServer({ server }); // 서버에서 http+webSocket 동시 사용(protocol 두개 사용)
 const wsServer = new Server(httpServer, {
   cors: {
